@@ -16,7 +16,7 @@
       p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
       footer { bottom: 20px; display: flex; justify-content: space-between; gap: 12px; }
       .component-label { width: max-content; max-width: 96px; padding: 3px; background: var(--label-background); color: var(--text); font-size: 12px; line-height: 1.25; text-align: center; pointer-events: none; }
-      .zone-label { color: var(--muted); font-size: 14px; font-weight: 600; }
+      .zone-label { color: var(--zone-label-color); font-size: var(--zone-label-size); font-weight: 400; }
       .flow-label { max-width: 190px; }
       .membrane-label { max-width: 320px; font-weight: 600; }
       #status { position: absolute; left: 28px; top: 45%; max-width: 520px; }
@@ -47,7 +47,7 @@
       .legend-swatch { display: inline-block; width: 22px; flex-shrink: 0; }
       .legend-swatch.cable { height: 4px; background: var(--swatch-color); }
       .legend-swatch.ground { outline: 1px solid var(--muted); }
-      .legend-swatch.hose { height: 3px; background: var(--swatch-color); }
+      .legend-swatch.hose { height: 8px; background: var(--swatch-color); border-top: 1px solid var(--hose-stripe-color); }
       .legend-swatch.gas { height: 8px; background: var(--swatch-color); }
       @media (min-width: 601px) {
         header { right: 296px; }
@@ -58,7 +58,6 @@
         #viewport { top: 160px; bottom: 100px; }
         footer { bottom: 16px; flex-direction: column; gap: 4px; }
         .component-label { max-width: 54px; padding: 2px; font-size: 11px; }
-        .zone-label { font-size: 12px; }
         .flow-label { max-width: 100px; }
         .membrane-label { max-width: 160px; }
         header h1 { max-width: calc(100% - 56px); }

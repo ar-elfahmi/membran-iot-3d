@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { components, membrane, palette, sceneConfig as config, ui, zones, sensing, controller, communication, actuation, layout, powerSupply, cables } from './config.js';
+import { components, membrane, palette, sceneConfig as config, ui, zones, sensing, controller, communication, actuation, layout, powerSupply, cables, labelConfig } from './config.js';
 import { createMembraneModule } from './components/membrane.js';
 import { createPipe } from './components/pipes.js';
 import { createFlowMeter } from './components/flowMeter.js';
@@ -14,9 +14,9 @@ import { createSolenoidValve } from './components/solenoidValve.js';
 import { createPump } from './components/pump.js';
 import { createHBridge } from './components/hbridge.js';
 import { createPowerSupply } from './components/powerSupply.js';
-import { createCables, getPortWorld, checkCableClearance, layers } from './components/cables.js';
+import { createCables, getPortWorld, checkCableClearance, checkCableStats, layers } from './components/cables.js';
 import { createWifiModule, createMqttBroker, createCloud, createPhone, createLaptop } from './components/comms.js';
-import { createLabel } from './ui/labels.js';
+import { createLabel, createLabelUpdater } from './ui/labels.js';
 import { checkLayoutOverlap, getComponentBox } from './ui/layout.js';
 import { createLayerPanel } from './ui/layerPanel.js';
 import { createLegend } from './ui/legend.js';
@@ -25,6 +25,9 @@ for (const key of ['background', 'text', 'muted', 'labelBackground', 'floor', 'g
   document.documentElement.style.setProperty(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`, palette[key]);
 }
 for (const id of ['title', 'subtitle', 'instructions', 'scope']) document.getElementById(id).textContent = ui[id];
+document.documentElement.style.setProperty('--zone-label-color', labelConfig.zoneColor);
+document.documentElement.style.setProperty('--zone-label-size', `${labelConfig.zoneFontSize}px`);
+document.documentElement.style.setProperty('--hose-stripe-color', sensing.sdp31.tube.stripeColor);
 
 const viewport = document.getElementById('viewport');
 const scene = new THREE.Scene();
@@ -132,6 +135,7 @@ scene.add(membraneUnit);
 
 const flowConfig = { ...sensing, ...sensing.flowSensor, ...components.find((component) => component.id === 'flowSensor') };
 const flowSensor = createFlowSensor(flowConfig);
+flowSensor.userData.layoutInline = flowConfig.layoutInline;
 const permeate = pipes.get(flowConfig.route);
 flowSensor.position.copy(permeate.userData.curve.getPointAt(flowConfig.at));
 flowSensor.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), permeate.userData.curve.getTangentAt(flowConfig.at));
@@ -139,15 +143,15 @@ permeate.add(flowSensor);
 
 const sdpConfig = { ...sensing, ...sensing.sdp31, ...components.find((component) => component.id === 'sdp31') };
 scene.updateMatrixWorld(true);
+const sdpInverse = new THREE.Matrix4().compose(new THREE.Vector3(...sdpConfig.position), new THREE.Quaternion().setFromEuler(new THREE.Euler(...sdpConfig.rotation)), new THREE.Vector3(1, 1, 1)).invert();
 sdpConfig.ports = sdpConfig.ports.map((port) => {
   const pipe = pipes.get(port.route);
-  const origin = new THREE.Vector3(...sdpConfig.position);
   return {
     ...port,
-    via: port.via.map((point) => new THREE.Vector3(...point).sub(origin).toArray()),
+    via: port.via.map((point) => new THREE.Vector3(...point).applyMatrix4(sdpInverse).toArray()),
     connection: {
-      position: pipe.localToWorld(pipe.userData.curve.getPointAt(port.at)).sub(origin).toArray(),
-      tangent: pipe.userData.curve.getTangentAt(port.at).transformDirection(pipe.matrixWorld).toArray(),
+      position: pipe.localToWorld(pipe.userData.curve.getPointAt(port.at)).applyMatrix4(sdpInverse).toArray(),
+      tangent: pipe.userData.curve.getTangentAt(port.at).transformDirection(pipe.matrixWorld).transformDirection(sdpInverse).toArray(),
     },
   };
 });
@@ -159,39 +163,45 @@ scene.traverse((object) => {
 scene.add(createCables({ ...cables, pipeRadius: membrane.pipe.radius }, devices, pipes));
 const zoneObjects = [];
 zones.forEach((zone) => {
-  const box = new THREE.Box3();
-  for (const device of devices) {
-    if (components.some((component) => component.id === device.userData.id && component.category === zone.category)) box.union(getComponentBox(device));
-  }
-  if (box.isEmpty()) return;
-  box.expandByVector(new THREE.Vector3(...layout.zone.padding));
-  const y = layout.zone.y;
-  const border = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(box.min.x, y, box.min.z), new THREE.Vector3(box.max.x, y, box.min.z),
-      new THREE.Vector3(box.max.x, y, box.max.z), new THREE.Vector3(box.min.x, y, box.max.z),
-      new THREE.Vector3(box.min.x, y, box.min.z),
-    ]),
-    new THREE.LineDashedMaterial({ color: layout.zone.color, transparent: true, opacity: layout.zone.opacity, dashSize: layout.zone.dashSize, gapSize: layout.zone.gapSize }),
-  );
-  border.name = zone.category;
-  border.computeLineDistances();
-  scene.add(border);
-  const label = createLabel(zone.name, 'zone-label');
-  label.center.set(0, 1);
-  label.position.set(box.min.x, y, box.min.z).add(new THREE.Vector3(...(zone.labelOffset ?? layout.zone.labelOffset)));
-  scene.add(label);
-  zoneObjects.push(border, label);
+  zone.regions.forEach((ids, regionIndex) => {
+    const box = new THREE.Box3();
+    for (const device of devices) {
+      if (ids.includes(device.userData.id)) box.union(getComponentBox(device));
+    }
+    if (box.isEmpty()) return;
+    box.expandByVector(new THREE.Vector3(...layout.zone.padding));
+    const y = layout.zone.y;
+    const border = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(box.min.x, y, box.min.z), new THREE.Vector3(box.max.x, y, box.min.z),
+        new THREE.Vector3(box.max.x, y, box.max.z), new THREE.Vector3(box.min.x, y, box.max.z),
+        new THREE.Vector3(box.min.x, y, box.min.z),
+      ]),
+      new THREE.LineDashedMaterial({ color: layout.zone.color, transparent: true, opacity: layout.zone.opacity, dashSize: layout.zone.dashSize, gapSize: layout.zone.gapSize }),
+    );
+    border.name = zone.category;
+    border.computeLineDistances();
+    scene.add(border);
+    zoneObjects.push(border);
+    if (regionIndex > 0) return;
+    const label = createLabel(zone.name, 'zone-label');
+    label.center.set(0, 1);
+    label.position.set(box.min.x, y, box.min.z).add(new THREE.Vector3(...(zone.labelOffset ?? layout.zone.labelOffset)));
+    scene.add(label);
+    zoneObjects.push(label);
+  });
 });
 
 const componentLabels = [];
+const gasAttachments = [];
 scene.traverse((object) => {
   if (object.isCSS2DObject && object.element.classList.contains('component-label')) componentLabels.push(object);
+  if (object.userData.gasLayer) gasAttachments.push(object);
 });
 createLayerPanel({
   ...Object.fromEntries(Object.entries(layers).map(([id, group]) => [id, [group]])),
   // Mesh pipa, flange dan panah saja; perangkat inline mempertahankan visibilitasnya.
-  gas: [...pipes.values()].flatMap((pipe) => pipe.children.filter((object) => object.isMesh)),
+  gas: [...gasAttachments, ...[...pipes.values()].flatMap((pipe) => pipe.children.filter((object) => object.isMesh))],
   labels: componentLabels,
   zones: zoneObjects,
 });
@@ -201,8 +211,10 @@ if (layout.devHosts.includes(window.location.hostname)) {
   window.checkLayoutOverlap = () => checkLayoutOverlap(devices);
   window.getPortWorld = getPortWorld;
   window.checkCableClearance = checkCableClearance;
+  window.checkCableStats = checkCableStats;
   console.info('[layout]', JSON.stringify(window.checkLayoutOverlap()));
   console.info('[cables]', JSON.stringify(window.checkCableClearance()));
+  window.checkCableStats();
 }
 
 function resize() {
@@ -221,8 +233,10 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 document.getElementById('status').hidden = true;
+const updateLabels = createLabelUpdater(scene, camera, devices);
 renderer.setAnimationLoop(() => {
   controls.update();
   renderer.render(scene, camera);
   labels.render(scene, camera);
+  updateLabels();
 });

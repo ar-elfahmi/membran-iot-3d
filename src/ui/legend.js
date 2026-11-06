@@ -6,9 +6,7 @@ export function createLegend() {
   panel.className = 'scene-panel';
   panel.setAttribute('aria-label', legend.title);
   const details = document.createElement('details');
-  const mobile = window.matchMedia('(max-width: 600px)');
-  details.open = !mobile.matches;
-  mobile.addEventListener('change', (event) => { details.open = !event.matches; });
+  details.open = !legend.collapsed;
   const summary = document.createElement('summary');
   summary.textContent = legend.title;
   const content = document.createElement('div');

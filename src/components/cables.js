@@ -47,7 +47,7 @@ function rounded(points, radius) {
   return path;
 }
 
-function exitPoints(reference, lane) {
+function exitPoints(reference, lane, height) {
   const [id, port] = endpoint(reference);
   const position = getPortWorld(id, port);
   const box = getComponentBox(devices.get(id));
@@ -65,7 +65,7 @@ function exitPoints(reference, lane) {
   const exit = raised.clone();
   exit[faces[0].axis] = faces[0].value;
   const floor = exit.clone();
-  floor.y = settings.baseHeight;
+  floor.y = devices.get(id).userData.layoutInline ? exit.y : height;
   return [position, raised, exit, floor];
 }
 
@@ -79,14 +79,17 @@ export function createCables(config, components, pipes) {
     pipe.updateWorldMatrix(true, false);
     const curve = pipe.userData.curve;
     const count = Math.ceil(curve.getLength() / config.sampleStep);
-    for (let i = 0; i <= count; i++) pipePoints.push(pipe.localToWorld(curve.getPointAt(i / count)));
+    for (let i = 0; i <= count; i++) pipePoints.push({ id: pipe.name, point: pipe.localToWorld(curve.getPointAt(i / count)) });
   }
   const ids = new Set();
-  for (const [index, connection] of config.connections.entries()) {
+  for (const connection of config.connections) {
     const { id, from, to, type, wireless } = connection;
     if (!id || ids.has(id) || !layers[type]) throw new Error(`Koneksi kabel tidak valid: ${id}`);
     ids.add(id);
-    if (connection.via?.some((point) => !Array.isArray(point) || point.length !== 2 || !point.every(Number.isFinite))) throw new Error(`Via tidak valid: ${id}`);
+    if (connection.via?.some((point) => !Array.isArray(point) || ![2, 3].includes(point.length) || !point.every(Number.isFinite))) throw new Error(`Via tidak valid: ${id}`);
+    if (connection.height !== undefined && (!Number.isFinite(connection.height) || connection.height < config.baseHeight)) throw new Error(`Tinggi kabel tidak valid: ${id}`);
+    if (connection.lane !== undefined && (!Number.isInteger(connection.lane) || connection.lane < 0)) throw new Error(`Lane tidak valid: ${id}`);
+    if (connection.underPipes !== undefined && (!Array.isArray(connection.underPipes) || connection.underPipes.some((id) => !pipes.has(id)))) throw new Error(`Pipa lintasan bawah tidak valid: ${id}`);
     let curve, cable;
     if (wireless) {
       const start = getPortWorld(...endpoint(from)), end = getPortWorld(...endpoint(to));
@@ -97,21 +100,22 @@ export function createCables(config, components, pipes) {
       cable = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(config.network.segments)), new THREE.LineDashedMaterial({ color: config.colors[type], dashSize: config.network.dashSize, gapSize: config.network.gapSize }));
       cable.computeLineDistances();
     } else {
-      const lane = (index % 4) * config.laneSpacing;
-      const start = exitPoints(from, lane), end = exitPoints(to, lane);
-      const via = connection.via ?? [[start[3].x, config.laneZ - lane], [end[3].x, config.laneZ - lane]];
-      const floor = [start[3], ...via.map(([x, z]) => new THREE.Vector3(x, config.baseHeight, z)), end[3]];
+      const lane = (connection.lane ?? 0) * config.laneSpacing;
+      const height = connection.height ?? config.baseHeight;
+      const start = exitPoints(from, lane, height), end = exitPoints(to, lane, height);
+      const floor = [start[3], ...(connection.via ?? []).map((point) => point.length === 3 ? new THREE.Vector3(...point) : new THREE.Vector3(point[0], height, point[1])), end[3]];
       const bridged = [];
       for (let i = 1; i < floor.length; i++) {
         const count = Math.max(1, Math.ceil(floor[i - 1].distanceTo(floor[i]) / config.sampleStep));
         for (let j = i === 1 ? 0 : 1; j <= count; j++) {
           const point = floor[i - 1].clone().lerp(floor[i], j / count);
-          for (const pipePoint of pipePoints) {
+          for (const { id: pipeId, point: pipePoint } of pipePoints) {
+            if (connection.underPipes?.includes(pipeId)) continue;
             const distance = Math.hypot(point.x - pipePoint.x, point.z - pipePoint.z);
-            const inner = config.pipeRadius + config.radius + config.bridgeClearance;
+            const inner = config.pipeRadius + config.radius + config.crossingClearance;
             const t = THREE.MathUtils.clamp((distance - inner) / config.bridgeRun, 0, 1);
-            const height = pipePoint.y + inner;
-            point.y = Math.max(point.y, config.baseHeight + (height - config.baseHeight) * (1 - t * t * (3 - 2 * t)));
+            const crossingHeight = pipePoint.y + inner;
+            point.y = Math.max(point.y, config.baseHeight + (crossingHeight - config.baseHeight) * (1 - t * t * (3 - 2 * t)));
           }
           bridged.push(point);
         }
@@ -148,4 +152,18 @@ export function checkCableClearance() {
     }
   }
   return { checked: routes.length, collisions };
+}
+
+export function checkCableStats() {
+  const cables = routes.map((cable) => {
+    const { curve, from, to, type } = cable.userData;
+    const length = curve.getLength();
+    const straight = getPortWorld(...endpoint(from)).distanceTo(getPortWorld(...endpoint(to)));
+    const detour = straight > 0 ? length / straight : Infinity;
+    return { id: cable.name, type, length, straight, detour };
+  }).sort((a, b) => b.detour - a.detour);
+  console.table(cables);
+  console.info('[cables] 5 detour terbesar');
+  console.table(cables.slice(0, 5));
+  return { checked: cables.length, cables, worst: cables.slice(0, 5), violations: cables.filter((cable) => cable.type !== 'communication' && cable.detour > settings.maxDetour) };
 }

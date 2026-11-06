@@ -8,6 +8,7 @@ export function createSdp31(config) {
   group.userData = { id, name, desc, pins: [...pins] };
   group.userData.ports = Object.fromEntries(Object.entries(config.electricalPorts).map(([port, position]) => [port, new THREE.Vector3(...position)]));
   group.position.set(...config.position);
+  group.rotation.set(...config.rotation);
   const addMesh = (geometry, color, position, parent = group) => {
     const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, ...material }));
     mesh.position.set(...position);
@@ -47,6 +48,7 @@ export function createSdp31(config) {
     // Selang dan tee ikut sensor tetapi bukan badan perangkat pada pemeriksaan layout.
     const connection = new THREE.Group();
     connection.userData.layoutAttachment = true;
+    connection.userData.gasLayer = true;
     group.add(connection);
     const teePosition = new THREE.Vector3(...port.connection.position);
     const tee = addMesh(new THREE.CylinderGeometry(config.tube.teeRadius, config.tube.teeRadius, config.tube.teeLength, segments), colors.metal, teePosition.toArray(), connection);
@@ -57,7 +59,13 @@ export function createSdp31(config) {
     start.y += config.nozzle.height / 2;
     const end = teePosition.clone().add(new THREE.Vector3(...config.tube.endOffset));
     const curve = new THREE.CatmullRomCurve3([start, ...port.via.map((point) => new THREE.Vector3(...point)), end]);
-    addMesh(new THREE.TubeGeometry(curve, config.tube.segments, config.tube.radius, config.tube.radialSegments, false), port.color, [0, 0, 0], connection);
+    const geometry = new THREE.TubeGeometry(curve, config.tube.segments, config.tube.radius, config.tube.radialSegments, false);
+    const hose = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: port.color, roughness: config.tube.roughness, transparent: true, opacity: config.tube.opacity, depthWrite: false }));
+    hose.userData = { curve, pressureHose: true, port: port.name };
+    connection.add(hose);
+    // Garis mengikuti normal frame TubeGeometry sehingga tetap melekat di permukaan.
+    const stripe = geometry.parameters.path.getSpacedPoints(config.tube.segments).map((point, i) => point.addScaledVector(geometry.normals[i], config.tube.radius));
+    connection.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(stripe), config.tube.segments, config.tube.stripeRadius, config.tube.radialSegments, false), new THREE.MeshStandardMaterial({ color: config.tube.stripeColor, roughness: config.tube.roughness })));
   }
   const label = createLabel(name, 'component-label');
   label.element.title = desc;
