@@ -3,21 +3,23 @@ import { layout } from '../config.js';
 
 // Box3 badan perangkat, terpisah dari anak ber-ID sendiri serta jalur pipa/selang.
 // CSS2D label tidak memiliki geometri; keterbacaannya diperiksa melalui browser.
+export function getComponentBox(component) {
+  component.updateWorldMatrix(true, true);
+  const box = new THREE.Box3();
+  const visit = (node) => {
+    if (node !== component && (node.userData.id || node.userData.layoutAttachment)) return;
+    if (node.isMesh) {
+      node.geometry.computeBoundingBox();
+      box.union(node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld));
+    }
+    node.children.forEach(visit);
+  };
+  visit(component);
+  return box;
+}
+
 export function checkLayoutOverlap(components) {
-  const boxes = components.map((component) => {
-    component.updateWorldMatrix(true, true);
-    const box = new THREE.Box3();
-    const visit = (node) => {
-      if (node !== component && (node.userData.id || node.userData.layoutAttachment)) return;
-      if (node.isMesh) {
-        node.geometry.computeBoundingBox();
-        box.union(node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld));
-      }
-      node.children.forEach(visit);
-    };
-    visit(component);
-    return { id: component.userData.id, box };
-  });
+  const boxes = components.map((component) => ({ id: component.userData.id, box: getComponentBox(component) }));
   const overlaps = [];
   const contacts = [];
   for (let i = 0; i < boxes.length; i++) {

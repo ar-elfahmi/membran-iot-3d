@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { components, membrane, palette, sceneConfig as config, ui, zones, sensing, controller, communication, layout } from './config.js';
-import { createPlaceholder } from './components/placeholder.js';
+import { components, membrane, palette, sceneConfig as config, ui, zones, sensing, controller, communication, actuation, layout } from './config.js';
 import { createMembraneModule } from './components/membrane.js';
 import { createPipe } from './components/pipes.js';
 import { createFlowMeter } from './components/flowMeter.js';
@@ -11,9 +10,12 @@ import { createTemperatureSensor } from './components/temperatureSensor.js';
 import { createSdp31 } from './components/sdp31.js';
 import { createFlowSensor } from './components/flowSensor.js';
 import { createEsp32 } from './components/esp32.js';
+import { createSolenoidValve } from './components/solenoidValve.js';
+import { createPump } from './components/pump.js';
+import { createHBridge } from './components/hbridge.js';
 import { createWifiModule, createMqttBroker, createCloud, createPhone, createLaptop } from './components/comms.js';
 import { createLabel } from './ui/labels.js';
-import { checkLayoutOverlap } from './ui/layout.js';
+import { checkLayoutOverlap, getComponentBox } from './ui/layout.js';
 
 for (const key of ['background', 'text', 'muted', 'labelBackground']) {
   document.documentElement.style.setProperty(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`, palette[key]);
@@ -69,20 +71,35 @@ grid.position.y = config.grid.y;
 scene.add(grid);
 const commFactories = { wifiModule: createWifiModule, mqttBroker: createMqttBroker, cloud: createCloud, phone: createPhone, laptop: createLaptop };
 for (const component of components) {
-  if (component.category === 'actuation') scene.add(createPlaceholder(component));
+  if (component.id === 'hbridge') scene.add(createHBridge({ ...actuation, ...actuation.hbridge, ...component }));
   else if (component.id === 'esp32') scene.add(createEsp32({ ...controller, ...component }));
   else if (commFactories[component.id]) scene.add(commFactories[component.id]({ ...communication, ...component }));
 }
 const membraneUnit = createMembraneModule(membrane);
 const pipes = new Map();
+const inlineActuators = [...actuation.valves.map((valve) => ({ ...actuation.valve, ...valve })), actuation.pump];
 for (const route of membrane.routes) {
   const color = membrane.colors[route.color];
-  const pipe = createPipe(route.points, color, membrane.pipe.radius);
+  const gaps = [
+    ...inlineActuators.map((item) => ({ ...item, span: item.portSpan ?? item.port?.span })),
+    ...membrane.flowMeter.meters.map((item) => ({ ...item, span: membrane.flowMeter.length })),
+    { id: 'flowSensor', ...sensing.flowSensor, span: Math.max(...sensing.flowSensor.collarPositions.map((point) => Math.abs(point[0]))) * 2 + sensing.flowSensor.collarLength },
+  ].filter((item) => item.route === route.id);
+  const pipe = createPipe(route.points, color, membrane.pipe.radius, { gaps, flangeAt: route.flangeAt });
   pipe.name = route.id;
   Object.assign(pipe.userData, { id: route.id, name: route.name, desc: route.desc, pins: [] });
   pipe.userData.layoutAttachment = true;
   pipes.set(route.id, pipe);
   const { curve } = pipe.userData;
+  for (const item of inlineActuators.filter((item) => item.route === route.id)) {
+    const component = components.find((entry) => entry.id === item.id);
+    const factory = item.id === 'pump' ? createPump : createSolenoidValve;
+    const device = factory({ ...actuation, ...item, ...component });
+    device.position.copy(curve.getPointAt(item.at));
+    device.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), curve.getTangentAt(item.at));
+    Object.assign(device.userData, { layoutInline: item.layoutInline, route: route.id, at: item.at });
+    pipe.add(device);
+  }
   const arrow = new THREE.Mesh(
     new THREE.ConeGeometry(membrane.arrow.radius, membrane.arrow.length, membrane.arrow.segments),
     new THREE.MeshStandardMaterial({ color, ...membrane.material }),
@@ -130,17 +147,35 @@ sdpConfig.ports = sdpConfig.ports.map((port) => {
   };
 });
 scene.add(createSdp31(sdpConfig));
+const devices = [];
+scene.traverse((object) => {
+  if (object.isGroup && object.userData.id && !object.userData.layoutAttachment) devices.push(object);
+});
 zones.forEach((zone) => {
+  const box = new THREE.Box3();
+  for (const device of devices) {
+    if (components.some((component) => component.id === device.userData.id && component.category === zone.category)) box.union(getComponentBox(device));
+  }
+  if (box.isEmpty()) return;
+  box.expandByVector(new THREE.Vector3(...layout.zone.padding));
+  const y = layout.zone.y;
+  const border = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(box.min.x, y, box.min.z), new THREE.Vector3(box.max.x, y, box.min.z),
+      new THREE.Vector3(box.max.x, y, box.max.z), new THREE.Vector3(box.min.x, y, box.max.z),
+      new THREE.Vector3(box.min.x, y, box.min.z),
+    ]),
+    new THREE.LineDashedMaterial({ color: layout.zone.color, transparent: true, opacity: layout.zone.opacity, dashSize: layout.zone.dashSize, gapSize: layout.zone.gapSize }),
+  );
+  border.name = zone.category;
+  border.computeLineDistances();
+  scene.add(border);
   const label = createLabel(zone.name, 'zone-label');
-  label.position.set(...zone.position);
+  label.position.set(box.min.x, y, box.min.z).add(new THREE.Vector3(...(zone.labelOffset ?? layout.zone.labelOffset)));
   scene.add(label);
 });
 
 if (layout.devHosts.includes(window.location.hostname)) {
-  const devices = [];
-  scene.traverse((object) => {
-    if (object.isGroup && object.userData.id && !object.userData.layoutAttachment) devices.push(object);
-  });
   window.checkLayoutOverlap = () => checkLayoutOverlap(devices);
   console.info('[layout]', JSON.stringify(window.checkLayoutOverlap()));
 }
