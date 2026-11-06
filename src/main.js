@@ -1,8 +1,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { components, palette, sceneConfig as config, ui, zones } from './config.js';
+import { components, membrane, palette, sceneConfig as config, ui, zones } from './config.js';
 import { createPlaceholder } from './components/placeholder.js';
+import { createMembraneModule } from './components/membrane.js';
+import { createPipe } from './components/pipes.js';
+import { createFlowMeter } from './components/flowMeter.js';
+import { createPressureSensor } from './components/pressureSensor.js';
+import { createTemperatureSensor } from './components/temperatureSensor.js';
 import { createLabel } from './ui/labels.js';
 
 for (const key of ['background', 'text', 'muted', 'labelBackground']) {
@@ -58,6 +63,37 @@ const grid = new THREE.GridHelper(config.grid.size, config.grid.divisions, palet
 grid.position.y = config.grid.y;
 scene.add(grid);
 components.forEach((component) => scene.add(createPlaceholder(component)));
+const membraneUnit = createMembraneModule(membrane);
+for (const route of membrane.routes) {
+  const color = membrane.colors[route.color];
+  const pipe = createPipe(route.points, color, membrane.pipe.radius);
+  pipe.name = route.id;
+  Object.assign(pipe.userData, { id: route.id, name: route.name, desc: route.desc, pins: [] });
+  const { curve } = pipe.userData;
+  const arrow = new THREE.Mesh(
+    new THREE.ConeGeometry(membrane.arrow.radius, membrane.arrow.length, membrane.arrow.segments),
+    new THREE.MeshStandardMaterial({ color, ...membrane.material }),
+  );
+  arrow.position.copy(curve.getPointAt(route.arrowAt));
+  arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), curve.getTangentAt(route.arrowAt));
+  pipe.add(arrow);
+  const label = createLabel(route.label.text, 'component-label flow-label');
+  label.position.set(...route.label.position);
+  label.element.title = route.desc;
+  pipe.add(label);
+  for (const meter of membrane.flowMeter.meters.filter((item) => item.route === route.id)) {
+    const flowMeter = createFlowMeter(meter, membrane.flowMeter, membrane.colors, membrane.material, membrane.segments);
+    flowMeter.position.copy(curve.getPointAt(meter.at));
+    flowMeter.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), curve.getTangentAt(meter.at));
+    pipe.add(flowMeter);
+  }
+  membraneUnit.add(pipe);
+}
+membraneUnit.add(
+  createPressureSensor(membrane.pressureSensor, membrane.colors, membrane.material, membrane.segments),
+  createTemperatureSensor(membrane.temperatureSensor, membrane.colors, membrane.material, membrane.segments),
+);
+scene.add(membraneUnit);
 zones.forEach((zone) => {
   const label = createLabel(zone.name, 'zone-label');
   label.position.set(...zone.position);

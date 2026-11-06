@@ -17,6 +17,8 @@
       footer { bottom: 20px; display: flex; justify-content: space-between; gap: 12px; }
       .component-label { width: max-content; max-width: 96px; padding: 3px; background: var(--label-background); color: var(--text); font-size: 12px; line-height: 1.25; text-align: center; pointer-events: none; }
       .zone-label { color: var(--muted); font-size: 14px; font-weight: 600; }
+      .flow-label { max-width: 190px; }
+      .membrane-label { max-width: 320px; font-weight: 600; }
       #status { position: absolute; left: 28px; top: 45%; max-width: 520px; }
       #status[hidden] { display: none; }
       @media (max-width: 600px) {
@@ -26,6 +28,8 @@
         footer { bottom: 16px; flex-direction: column; gap: 4px; }
         .component-label { max-width: 54px; padding: 2px; font-size: 11px; }
         .zone-label { font-size: 12px; }
+        .flow-label { max-width: 100px; }
+        .membrane-label { max-width: 160px; }
       }
     </style>
     <script type="importmap">

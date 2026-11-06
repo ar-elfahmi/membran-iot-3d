@@ -28,3 +28,4 @@ yang tidak masuk akal.
 ## Progres slice
 - Slice 0 selesai: struktur ES modules, importmap Three.js 0.170.0, OrbitControls.
 - Slice 1 selesai: scene dasar, grid, pencahayaan dan soft shadow, kamera responsif, 18 placeholder berlabel, overlay judul.
+- Slice 2 selesai: housing membran transparan dengan bundel hollow fiber, end cap/flange dan tiga port, pipa berkurva dengan label/panah statis, flow meter inline, Pressure Sensor dan Temperature Sensor di atas housing. Kurva pipa tersedia di userData.curve untuk Slice 8.
