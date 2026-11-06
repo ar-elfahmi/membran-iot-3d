@@ -7,6 +7,7 @@ function device(config) {
   const { id, name, desc, pins } = config;
   group.name = id;
   group.userData = { id, name, desc, pins: [...pins] };
+  group.userData.ports = Object.fromEntries(Object.entries(config.electricalPorts).map(([port, position]) => [port, new THREE.Vector3(...position)]));
   group.position.set(...config.position);
   const label = createLabel(config.label ?? name, 'component-label');
   label.element.style.whiteSpace = 'pre-line';

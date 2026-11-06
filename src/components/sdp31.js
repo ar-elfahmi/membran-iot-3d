@@ -6,6 +6,7 @@ export function createSdp31(config) {
   const { id, name, desc, pins, colors, segments, material } = config;
   group.name = id;
   group.userData = { id, name, desc, pins: [...pins] };
+  group.userData.ports = Object.fromEntries(Object.entries(config.electricalPorts).map(([port, position]) => [port, new THREE.Vector3(...position)]));
   group.position.set(...config.position);
   const addMesh = (geometry, color, position, parent = group) => {
     const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, ...material }));

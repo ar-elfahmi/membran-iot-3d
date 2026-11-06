@@ -18,7 +18,7 @@ export function createFlowMeter(config, style, colors, material, segments) {
   body.castShadow = display.castShadow = true;
   const label = createLabel(name, 'component-label');
   label.element.title = desc;
-  label.position.set(...style.labelOffset);
+  label.position.set(...(config.labelOffset ?? style.labelOffset));
   group.add(body, display, screen, label);
   return group;
 }

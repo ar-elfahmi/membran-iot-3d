@@ -7,6 +7,7 @@ export function createFlowSensor(config) {
   const { id, name, desc, pins, colors, material, segments } = config;
   group.name = id;
   group.userData = { id, name, desc, pins: [...pins] };
+  group.userData.ports = Object.fromEntries(Object.entries(config.electricalPorts).map(([port, position]) => [port, new THREE.Vector3(...position)]));
   const body = new THREE.Mesh(
     new THREE.CylinderGeometry(config.radius, config.radius, config.length, segments),
     new THREE.MeshPhysicalMaterial({ color: colors.clear, transparent: true, opacity: config.opacity, depthWrite: false, ...material }),

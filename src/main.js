@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { components, membrane, palette, sceneConfig as config, ui, zones, sensing, controller, communication, actuation, layout } from './config.js';
+import { components, membrane, palette, sceneConfig as config, ui, zones, sensing, controller, communication, actuation, layout, powerSupply, cables } from './config.js';
 import { createMembraneModule } from './components/membrane.js';
 import { createPipe } from './components/pipes.js';
 import { createFlowMeter } from './components/flowMeter.js';
@@ -13,11 +13,15 @@ import { createEsp32 } from './components/esp32.js';
 import { createSolenoidValve } from './components/solenoidValve.js';
 import { createPump } from './components/pump.js';
 import { createHBridge } from './components/hbridge.js';
+import { createPowerSupply } from './components/powerSupply.js';
+import { createCables, getPortWorld, checkCableClearance, layers } from './components/cables.js';
 import { createWifiModule, createMqttBroker, createCloud, createPhone, createLaptop } from './components/comms.js';
 import { createLabel } from './ui/labels.js';
 import { checkLayoutOverlap, getComponentBox } from './ui/layout.js';
+import { createLayerPanel } from './ui/layerPanel.js';
+import { createLegend } from './ui/legend.js';
 
-for (const key of ['background', 'text', 'muted', 'labelBackground']) {
+for (const key of ['background', 'text', 'muted', 'labelBackground', 'floor', 'grid']) {
   document.documentElement.style.setProperty(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`, palette[key]);
 }
 for (const id of ['title', 'subtitle', 'instructions', 'scope']) document.getElementById(id).textContent = ui[id];
@@ -71,7 +75,8 @@ grid.position.y = config.grid.y;
 scene.add(grid);
 const commFactories = { wifiModule: createWifiModule, mqttBroker: createMqttBroker, cloud: createCloud, phone: createPhone, laptop: createLaptop };
 for (const component of components) {
-  if (component.id === 'hbridge') scene.add(createHBridge({ ...actuation, ...actuation.hbridge, ...component }));
+  if (component.id === 'powerSupply') scene.add(createPowerSupply({ ...powerSupply, ...component }));
+  else if (component.id === 'hbridge') scene.add(createHBridge({ ...actuation, ...actuation.hbridge, ...component }));
   else if (component.id === 'esp32') scene.add(createEsp32({ ...controller, ...component }));
   else if (commFactories[component.id]) scene.add(commFactories[component.id]({ ...communication, ...component }));
 }
@@ -151,6 +156,8 @@ const devices = [];
 scene.traverse((object) => {
   if (object.isGroup && object.userData.id && !object.userData.layoutAttachment) devices.push(object);
 });
+scene.add(createCables({ ...cables, pipeRadius: membrane.pipe.radius }, devices, pipes));
+const zoneObjects = [];
 zones.forEach((zone) => {
   const box = new THREE.Box3();
   for (const device of devices) {
@@ -171,13 +178,31 @@ zones.forEach((zone) => {
   border.computeLineDistances();
   scene.add(border);
   const label = createLabel(zone.name, 'zone-label');
+  label.center.set(0, 1);
   label.position.set(box.min.x, y, box.min.z).add(new THREE.Vector3(...(zone.labelOffset ?? layout.zone.labelOffset)));
   scene.add(label);
+  zoneObjects.push(border, label);
 });
+
+const componentLabels = [];
+scene.traverse((object) => {
+  if (object.isCSS2DObject && object.element.classList.contains('component-label')) componentLabels.push(object);
+});
+createLayerPanel({
+  ...Object.fromEntries(Object.entries(layers).map(([id, group]) => [id, [group]])),
+  // Mesh pipa, flange dan panah saja; perangkat inline mempertahankan visibilitasnya.
+  gas: [...pipes.values()].flatMap((pipe) => pipe.children.filter((object) => object.isMesh)),
+  labels: componentLabels,
+  zones: zoneObjects,
+});
+createLegend();
 
 if (layout.devHosts.includes(window.location.hostname)) {
   window.checkLayoutOverlap = () => checkLayoutOverlap(devices);
+  window.getPortWorld = getPortWorld;
+  window.checkCableClearance = checkCableClearance;
   console.info('[layout]', JSON.stringify(window.checkLayoutOverlap()));
+  console.info('[cables]', JSON.stringify(window.checkCableClearance()));
 }
 
 function resize() {

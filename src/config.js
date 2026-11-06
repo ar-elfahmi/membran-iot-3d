@@ -3,19 +3,33 @@ export const palette = {
   text: '#f1f3f4', muted: '#b6c0c7', labelBackground: '#22272b',
   sensing: '#62a9ba', controller: '#bac5cc', actuation: '#c6a477',
   membrane: '#7bac95', communication: '#8aadc2', light: '#ffffff',
-  cables: { power: '#e54848', control: '#f28c28', communication: '#39a85b', data: '#368ce7', ground: '#111111' },
+  cables: { power: '#e54848', control: '#f28c28', communication: '#39a85b', data: '#368ce7', gnd: '#111111' },
 };
 
 export const ui = {
   title: 'Smart Mixed-Matrix Membrane Gas Separation System',
   subtitle: 'Model 3D interaktif · Tata letak awal sistem IoT',
   instructions: 'Seret: putar · Scroll / cubit: zoom · Klik kanan: geser',
-  scope: 'Slice 5 · Actuation & Control Unit',
+  scope: 'Slice 6B · Panel layer & legenda',
   canvasLabel: 'Tata letak 3D sistem membran. Gunakan mouse atau sentuhan untuk memutar dan memperbesar.',
+  layerPanel: {
+    title: 'Layer tampilan', open: 'Buka panel layer', close: 'Ciutkan panel layer',
+    gasOnly: 'Hanya jalur gas', all: 'Semua',
+    options: [
+      { id: 'gas', label: 'Pipa gas', active: true },
+      { id: 'power', label: 'Daya (Power)', active: true },
+      { id: 'control', label: 'Kontrol', active: true },
+      { id: 'communication', label: 'Komunikasi', active: true },
+      { id: 'data', label: 'Data', active: true },
+      { id: 'gnd', label: 'GND', active: false },
+      { id: 'labels', label: 'Label komponen', active: true },
+      { id: 'zones', label: 'Batas zona', active: true },
+    ],
+  },
 };
 
 export const sceneConfig = {
-  camera: { fov: 43, near: 0.1, far: 180, position: [3, 24, 22], target: [3, 0, 0], fitWidth: 43, narrowFitWidth: 54, narrowAspect: 1, fitDepth: 25.5 },
+  camera: { fov: 43, near: 0.1, far: 180, position: [3, 24, 22], target: [3, 0, 0], fitWidth: 43, narrowFitWidth: 54, narrowAspect: 1, fitDepth: 31 },
   controls: { dampingFactor: 0.07, minDistance: 10, maxDistance: 90, maxPolarAngle: Math.PI / 2.15 },
   renderer: { maxPixelRatio: 2, exposure: 1.15 },
   floor: { size: 56, y: -0.02, roughness: 0.95 },
@@ -26,7 +40,8 @@ export const sceneConfig = {
 
 // Posisi dunia [x, y, z]; z negatif = atas diagram. Sensor inline mengikuti kurva.
 export const components = [
-  { id: 'sdp31', name: 'SDP31', desc: 'Sensor tekanan diferensial: P1 ke inlet (High Pressure), P2 ke retentate (Low Pressure).', position: [-9, 0.4, 0], category: 'sensing', pins: ['VIN', 'GND', 'SDA', 'SCL'] },
+  { id: 'sdp31', name: 'SDP31', desc: 'Sensor tekanan diferensial: P1 ke inlet (High Pressure), P2 ke retentate (Low Pressure).', position: [-0.2, 0.4, 11.6], category: 'sensing', pins: ['VIN', 'GND', 'SDA', 'SCL'] },
+  { id: 'powerSupply', name: 'Power Supply', desc: 'Adaptor 12V DC dengan regulator 5V dan 3.3V.', position: [-5.5, 0.5, -0.5], category: 'controller', pins: ['12V', '5V', '3.3V', 'GND'] },
   { id: 'flowSensor', name: 'Flow Sensor', desc: 'Sensor I2C pada permeate CO2 untuk mengukur aliran sebagai dasar perhitungan fluks.', category: 'sensing', pins: ['VIN', 'GND', 'SDA', 'SCL'] },
   { id: 'esp32', name: 'ESP32', desc: 'Pengendali pembacaan sensor I2C dan aktuator.', position: [0, 0.4, -0.5], category: 'controller', pins: ['VIN', '3V3', 'GND', 'GPIO21 / SDA', 'GPIO22 / SCL', 'EN', 'BOOT'] },
   { id: 'hbridge', name: 'H-BRIDGE DRIVER', desc: 'Driver empat kanal: tiga solenoid valve dan satu pompa vakum.', category: 'actuation', pins: ['VIN', 'GND', 'IN1', 'IN2', 'IN3', 'IN4', 'OUT1 / Valve 1', 'OUT2 / Valve 2', 'OUT3 / Valve 3', 'OUT4 / Pump'] },
@@ -34,7 +49,7 @@ export const components = [
   { id: 'valve2', name: 'Solenoid Valve 2', desc: 'Katup permeate setelah Flow Sensor, sebelum pompa vakum.', category: 'actuation', pins: ['+', '−'] },
   { id: 'valve3', name: 'Solenoid Valve 3', desc: 'Katup retentate sebelum Flow Meter Out.', category: 'actuation', pins: ['+', '−'] },
   { id: 'pump', name: 'Pump / Blower', desc: 'Pompa vakum pada permeate setelah Solenoid Valve 2.', category: 'actuation', pins: ['M+', 'M−'] },
-  { id: 'wifiModule', name: 'Wi-Fi / Bluetooth', label: 'Wi-Fi /\nBluetooth', desc: 'Antarmuka komunikasi nirkabel.', position: [-15, 0.4, -10], category: 'communication', pins: [] },
+  { id: 'wifiModule', name: 'Wi-Fi / Bluetooth', label: 'Wi-Fi /\nBluetooth', desc: 'Antarmuka komunikasi nirkabel.', position: [-3.5, 0.4, -4.6], category: 'communication', pins: [], electricalPorts: { UART: [1.125, 0.35, 0], NETWORK: [0, 1.8, 0] } },
   { id: 'mqttBroker', name: 'MQTT Broker', label: 'MQTT\nBroker', desc: 'Perantara pesan MQTT.', position: [-7, 0.4, -10], category: 'communication', pins: [] },
   { id: 'cloud', name: 'Cloud Platform', label: 'Cloud\nPlatform', desc: 'Platform penyimpanan dan pengolahan data.', position: [1, 0.4, -10], category: 'communication', pins: [] },
   { id: 'phone', name: 'Ponsel', desc: 'Antarmuka pemantauan melalui ponsel.', position: [9, 0.4, -10], category: 'communication', pins: [] },
@@ -42,17 +57,65 @@ export const components = [
 ];
 
 export const zones = [
-  { name: 'Communication', category: 'communication', labelOffset: [-3.5, 0.05, -0.7] },
-  { name: 'Sensing', category: 'sensing' },
-  { name: 'Controller', category: 'controller' },
-  { name: 'Actuation', category: 'actuation' },
+  { name: 'Communication', category: 'communication', labelOffset: [0, 0.05, -5.6] },
+  { name: 'Sensing', category: 'sensing', labelOffset: [0, 0.05, -2.6] },
+  { name: 'Controller', category: 'controller', labelOffset: [-3, 0.05, -2.6] },
+  { name: 'Actuation', category: 'actuation', labelOffset: [-3, 0.05, -0.8] },
 ];
 
 export const layout = {
   devHosts: ['localhost', '127.0.0.1', '[::1]'],
   // Kontak mekanis yang disengaja; pipa/selang ditandai layoutAttachment.
   contacts: [['membrane', 'pressureSensor'], ['membrane', 'tempSensor']],
-  zone: { padding: [0.65, 0, 0.65], y: 0.04, color: '#80909a', opacity: 0.35, dashSize: 0.28, gapSize: 0.2, labelOffset: [0, 0.05, -0.7] },
+  zone: { padding: [0.65, 0, 0.65], y: 0.04, color: '#80909a', opacity: 0.35, dashSize: 0.28, gapSize: 0.2, labelOffset: [0, 0.05, -0.8] },
+};
+
+export const powerSupply = {
+  segments: 24, material: { roughness: 0.8, metalness: 0.12 },
+  colors: { body: '#111518', pcb: '#246443', metal: '#b9c5cc', inductor: '#8d7442' },
+  adapter: { size: [2.1, 0.85, 2.1], position: [0, 0, 0] },
+  regulator: { size: [1.65, 0.14, 2.1], position: [2.35, -0.25, 0] },
+  capacitors: { radius: 0.23, height: 0.55, positions: [[1.9, 0.095, -0.45], [2.8, 0.095, -0.45]] },
+  inductor: { radius: 0.3, height: 0.28, position: [2.35, -0.04, 0.28] },
+  labels: [
+    { text: '12V DC IN', position: [0, 0.75, 0] },
+    { text: '5V', position: [1.65, 0.4, 0.85] },
+    { text: '3.3V', position: [3, 0.4, 0.85] },
+  ],
+  electricalPorts: { '12V': [0.7, 0.425, -0.8], '5V': [1.9, -0.18, 1.05], '3.3V': [2.8, -0.18, 1.05], GND: [2.35, -0.18, 1.05] },
+};
+
+export const cables = {
+  colors: palette.cables, baseHeight: 0.12, radius: 0.035, radialSegments: 6,
+  roughness: 0.9, metalness: 0, bendRadius: 0.18, sampleStep: 0.07,
+  laneSpacing: 0.11, laneZ: -4.3, exitClearance: 0.22,
+  bridgeClearance: 0.18, bridgeRun: 0.8, clearance: 0.025,
+  aliases: { solenoidValve1: 'valve1', solenoidValve2: 'valve2', solenoidValve3: 'valve3' },
+  network: { height: 4.8, bend: 1.1, dashSize: 0.22, gapSize: 0.16, segments: 96 },
+  connections: [
+    { id: 'power-driver', from: 'powerSupply.12V', to: 'hbridge.VIN', type: 'power' },
+    { id: 'power-esp32', from: 'powerSupply.5V', to: 'esp32.VIN', type: 'power', via: [[-2, 2.6]] },
+    { id: 'power-sdp31', from: 'powerSupply.3.3V', to: 'sdp31.VIN', type: 'power', via: [[-6.2, 3.4], [-6.2, 13], [-0.95, 13]] },
+    { id: 'power-flow', from: 'powerSupply.3.3V', to: 'flowSensor.VIN', type: 'power', via: [[-2, 3.4], [7.5, 3.4], [7.5, 8.3]] },
+    { id: 'gnd-esp32', from: 'powerSupply.GND', to: 'esp32.GND', type: 'gnd', via: [[-1.8, 2.7]] },
+    { id: 'gnd-driver', from: 'powerSupply.GND', to: 'hbridge.GND', type: 'gnd' },
+    { id: 'gnd-sdp31', from: 'powerSupply.GND', to: 'sdp31.GND', type: 'gnd', via: [[-6.4, 3.5], [-6.4, 13.2], [-0.45, 13.2]] },
+    { id: 'gnd-flow', from: 'powerSupply.GND', to: 'flowSensor.GND', type: 'gnd', via: [[-1.8, 3.6], [7.7, 3.6], [7.7, 8.3]] },
+    { id: 'i2c-sda', from: 'esp32.GPIO21_SDA', to: 'sdp31.SDA', type: 'data', via: [[2.2, 3.1], [-6.6, 3.1], [-6.6, 13.4], [0.05, 13.4]] },
+    { id: 'i2c-scl', from: 'esp32.GPIO22_SCL', to: 'sdp31.SCL', type: 'data', via: [[2.4, 3.3], [-6.8, 3.3], [-6.8, 13.6], [0.55, 13.6]] },
+    { id: 'i2c-sda-flow', from: 'sdp31.SDA', to: 'flowSensor.SDA', type: 'data', via: [[0.05, 13.8], [11.7, 13.8], [11.7, 8.4]] },
+    { id: 'i2c-scl-flow', from: 'sdp31.SCL', to: 'flowSensor.SCL', type: 'data', via: [[0.55, 14], [11.9, 14], [11.9, 8.6]] },
+    ...[1, 2, 3, 4].map((channel) => ({ id: `ctrl-in${channel}`, from: 'esp32.GPIO_CTRL', to: `hbridge.IN${channel}`, type: 'control' })),
+    { id: 'ctrl-valve1', from: 'hbridge.OUT1', to: 'solenoidValve1.COIL+', type: 'control', via: [[4.6, 3], [-5.5, 3], [-5.5, 6.6]] },
+    { id: 'ctrl-valve2', from: 'hbridge.OUT2', to: 'solenoidValve2.COIL+', type: 'control', via: [[8.8, 3], [9.6, 5.7]] },
+    { id: 'ctrl-valve3', from: 'hbridge.OUT3', to: 'solenoidValve3.COIL+', type: 'control', via: [[9, 3.2], [11.8, 5.7], [11.8, 11], [6.5, 11]] },
+    { id: 'ctrl-pump', from: 'hbridge.OUT4', to: 'pump.M+', type: 'control', via: [[9.2, 3.4], [13, 5.2]] },
+    { id: 'uart-wifi', from: 'esp32.TX', to: 'wifiModule.UART', type: 'communication', via: [[-1.9, -3.3], [-1.9, -4.6]] },
+    { id: 'net-mqtt', from: 'wifiModule.NETWORK', to: 'mqttBroker.NETWORK', type: 'communication', wireless: true },
+    { id: 'net-cloud', from: 'mqttBroker.NETWORK', to: 'cloud.NETWORK', type: 'communication', wireless: true },
+    { id: 'net-phone', from: 'cloud.NETWORK', to: 'phone.NETWORK', type: 'communication', wireless: true },
+    { id: 'net-laptop', from: 'cloud.NETWORK', to: 'laptop.NETWORK', type: 'communication', wireless: true, bend: -2.2 },
+  ],
 };
 
 export const sensing = {
@@ -63,15 +126,16 @@ export const sensing = {
     board: { size: [2.8, 0.14, 2], position: [0, 0, 0] },
     chip: { size: [0.75, 0.25, 0.7], position: [0, 0.19, 0.15] },
     ports: [
-      { name: 'P1', position: [-0.65, 0.37, -0.45], route: 'inletPipe', at: 0.13, color: palette.cables.control,
-        via: [[-10, 2.4, 2], [-10.4, 2.4, 5.5]] },
-      { name: 'P2', position: [0.65, 0.37, -0.45], route: 'retentatePipe', at: 0.96, color: palette.cables.data,
-        via: [[-8, 1.8, 3.2], [-3, 1.8, 4], [5, 1.8, 4], [10, 2.2, 6]] },
+      { name: 'P1', position: [-0.65, 0.37, -0.45], route: 'inletPipe', at: 0.97, color: palette.cables.control,
+        via: [[-2.4, 1.1, 10.8], [-4.25, 1.65, 9.2], [-4.25, 1.65, 8]] },
+      { name: 'P2', position: [0.65, 0.37, -0.45], route: 'retentatePipe', at: 0.15, color: palette.cables.data,
+        via: [[1.9, 1.1, 10.8], [2.65, 1.47, 9.7]] },
     ],
     nozzle: { radius: 0.15, boreRadius: 0.075, height: 0.6, boreHeight: 0.015, boreOffset: 0.305 },
     header: { size: [0.14, 0.55, 0.14], start: [-0.75, 0.24, 0.83], pitch: 0.5 },
     legend: { canvas: [512, 384], font: 'bold 28px Arial', size: [2.8, 2], position: [0, 0.075, 0], portTextAt: [[137, 60], [375, 60]], pinTextAt: [[119, 320], [210, 320], [302, 320], [393, 320]] },
     labelOffset: [0, 0.9, 1.8],
+    electricalPorts: { VIN: [-0.75, 0.515, 0.83], GND: [-0.25, 0.515, 0.83], SDA: [0.25, 0.515, 0.83], SCL: [0.75, 0.515, 0.83] },
     tube: { radius: 0.055, segments: 80, radialSegments: 8, teeRadius: 0.21, teeLength: 0.4, branchRadius: 0.1, branchLength: 0.4, branchOffset: [0, 0.2, 0], endOffset: [0, 0.4, 0] },
   },
   flowSensor: {
@@ -83,6 +147,7 @@ export const sensing = {
     connector: { size: [0.42, 0.25, 0.22], position: [0, 0.6, 0.34] },
     pin: { size: [0.045, 0.12, 0.1], start: [-0.135, 0.6, 0.49], pitch: 0.09 },
     labelOffset: [0, 1, 2.2],
+    electricalPorts: { VIN: [-0.135, 0.66, 0.54], GND: [-0.045, 0.66, 0.54], SDA: [0.045, 0.66, 0.54], SCL: [0.135, 0.66, 0.54] },
   },
 };
 
@@ -101,6 +166,7 @@ export const controller = {
     legend: { canvas: [256, 64], font: 'bold 28px Arial', size: [1.9, 0.45], position: [0, 0.075, 1.2], textAt: [[36, 43], [220, 43]] } },
   statusLed: { radius: 0.09, position: [-0.7, 0.19, 0.8], intensity: 1.6 },
   labelOffset: [0, 2.8, -1.4],
+  electricalPorts: { VIN: [-1.13, 0.545, 1.9], '3V3': [-1.13, 0.545, 1.63], GND: [-1.13, 0.545, 1.36], GPIO21_SDA: [1.13, 0.545, 0.82], GPIO22_SCL: [1.13, 0.545, 0.55], GPIO_CTRL: [1.13, 0.545, -0.8], TX: [-1.13, 0.545, -1.88] },
 };
 
 export const actuation = {
@@ -115,11 +181,12 @@ export const actuation = {
     bolts: { radius: 0.065, length: 0.06, positions: [[-0.27, 0.3, -0.22], [0.27, 0.3, -0.22], [-0.27, 0.3, 0.22], [0.27, 0.3, 0.22]] },
     led: { radius: 0.075, position: [0, 0.75, 0.32], intensity: 1.5 },
     labelOffset: [0, 2.1, 0],
+    electricalPorts: { 'COIL+': [-0.16, 1.155, 0], 'COIL-': [0.16, 1.155, 0] },
   },
   valves: [
-    { id: 'valve1', route: 'inletPipe', at: 0.82, layoutInline: true },
+    { id: 'valve1', route: 'inletPipe', at: 0.82, layoutInline: true, labelOffset: [-1.2, 2.5, 0.2] },
     { id: 'valve2', route: 'permeatePipe', at: 0.55, layoutInline: true },
-    { id: 'valve3', route: 'retentatePipe', at: 0.4, layoutInline: true },
+    { id: 'valve3', route: 'retentatePipe', at: 0.4, layoutInline: true, labelOffset: [-0.8, 2.5, 0] },
   ],
   pump: {
     id: 'pump', route: 'permeatePipe', at: 0.83, layoutInline: true,
@@ -132,6 +199,7 @@ export const actuation = {
     portSpan: 2.2,
     led: { radius: 0.085, position: [-0.3, 0.48, -0.625], intensity: 1.5 },
     labelOffset: [0, 1.9, -0.6],
+    electricalPorts: { 'M+': [-0.5, 0.2, -1.025], 'M-': [-0.1, 0.2, -1.025] },
   },
   hbridge: {
     position: [6, 0.4, -0.5],
@@ -140,10 +208,12 @@ export const actuation = {
     outputs: { size: [0.6, 0.42, 0.65], start: [-1.05, 0.29, 1.6], pitch: 0.7, screwRadius: 0.1, screwDepth: 0.04, screwY: 0.23 },
     header: { size: [0.09, 0.55, 0.09], start: [-1, 0.28, -1.9], pitch: 0.4 },
     labelOffset: [0, 2, -1.4],
+    electricalPorts: { VIN: [-1, 0.555, -1.9], GND: [-0.6, 0.555, -1.9], IN1: [-0.2, 0.555, -1.9], IN2: [0.2, 0.555, -1.9], IN3: [0.6, 0.555, -1.9], IN4: [1, 0.555, -1.9], OUT1: [-1.05, 0.52, 1.6], OUT2: [-0.35, 0.52, 1.6], OUT3: [0.35, 0.52, 1.6], OUT4: [1.05, 0.52, 1.6] },
   },
 };
 
 export const communication = {
+  electricalPorts: { NETWORK: [0, 1.8, 0] },
   segments: 24,
   colors: { case: '#698ca4', rack: '#334652', silver: '#a3b4c0', dark: '#101d28', screen: '#eaf2f6', ink: '#173342', muted: '#506b7a', accent: '#207b99', green: '#57d699', cloud: '#dcecf4' },
   material: { roughness: 0.55, metalness: 0.18 },
@@ -191,7 +261,7 @@ export const membrane = {
     { id: 'permeatePort', name: 'Port CO2-rich permeate', desc: 'Port permeate mengeluarkan gas kaya CO2 dari modul.', position: [3.1, 0.97, 0], direction: [0, 1, 0], radius: 0.2, length: 0.86, color: 'permeate' },
     { id: 'retentatePort', name: 'Port N2-rich retentate', desc: 'Port retentate mengeluarkan gas kaya N2 dari sisi depan modul.', position: [3.1, -0.18, 0.97], direction: [0, 0, 1], radius: 0.2, length: 0.86, color: 'retentate' },
   ],
-  label: { text: 'GAS SEPARATION MEMBRANE MODULE', position: [0, -0.9, 4.7] },
+  label: { text: 'GAS SEPARATION MEMBRANE MODULE', position: [0, 1, 2] },
   pipe: { radius: 0.14, tubularSegments: 96, radialSegments: 12, roughness: 0.55, metalness: 0.15, bendRadius: 0.35,
     flange: { radius: 0.27, tube: 0.07, radialSegments: 8, tubularSegments: 24 } },
   arrow: { radius: 0.3, length: 0.65, segments: 16 },
@@ -211,7 +281,7 @@ export const membrane = {
     screenSize: [0.65, 0.28, 0.02], screenPosition: [0, 0.46, 0.29], labelOffset: [0, 1.1, 0],
     meters: [
       { id: 'flowMeterIn', name: 'Flow Meter In', desc: 'Flow Meter In mengukur laju aliran campuran gas sebelum masuk membran.', pins: [], route: 'inletPipe', at: 0.35, layoutInline: true },
-      { id: 'flowMeterOut', name: 'Flow Meter Out', desc: 'Flow Meter Out mengukur laju aliran N2-rich retentate setelah pemisahan.', pins: [], route: 'retentatePipe', at: 0.73, layoutInline: true },
+      { id: 'flowMeterOut', name: 'Flow Meter Out', desc: 'Flow Meter Out mengukur laju aliran N2-rich retentate setelah pemisahan.', pins: [], route: 'retentatePipe', at: 0.73, layoutInline: true, labelOffset: [0.7, 1.1, 0.5] },
     ],
   },
   pressureSensor: {
@@ -229,4 +299,26 @@ export const membrane = {
     collarRadius: 0.15, collarLength: 0.18, collarPosition: [0, 0.35, 0],
     headSize: [0.42, 0.34, 0.32], headPosition: [0, 0.92, 0], labelOffset: [0.8, 1.8, 0],
   },
+};
+
+export const legend = {
+  title: 'Legenda warna',
+  groups: [
+    { title: 'Kabel', items: [
+      { label: 'Daya (Power supply)', color: cables.colors.power, type: 'cable' },
+      { label: 'Kontrol (Control)', color: cables.colors.control, type: 'cable' },
+      { label: 'Komunikasi (Communication)', color: cables.colors.communication, type: 'cable' },
+      { label: 'Data', color: cables.colors.data, type: 'cable' },
+      { label: 'GND', color: cables.colors.gnd, type: 'cable ground' },
+    ] },
+    { title: 'Selang tekanan', items: [
+      { label: 'Tekanan tinggi (High)', color: sensing.sdp31.ports.find((port) => port.name === 'P1').color, type: 'hose' },
+      { label: 'Tekanan rendah (Low)', color: sensing.sdp31.ports.find((port) => port.name === 'P2').color, type: 'hose' },
+    ] },
+    { title: 'Aliran gas', items: [
+      { label: 'Inlet', color: membrane.colors.inlet, type: 'gas' },
+      { label: 'CO2-rich permeate', color: membrane.colors.permeate, type: 'gas' },
+      { label: 'N2-rich retentate', color: membrane.colors.retentate, type: 'gas' },
+    ] },
+  ],
 };

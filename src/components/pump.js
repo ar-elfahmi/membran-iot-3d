@@ -6,6 +6,7 @@ export function createPump(config) {
   const { id, name, desc, pins, colors, material, segments } = config;
   group.name = id;
   group.userData = { id, name, desc, pins: [...pins], state: 'running' };
+  group.userData.ports = Object.fromEntries(Object.entries(config.electricalPorts).map(([port, position]) => [port, new THREE.Vector3(...position)]));
   const add = (geometry, color, position, parent = group) => {
     const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, ...material }));
     mesh.position.set(...position);

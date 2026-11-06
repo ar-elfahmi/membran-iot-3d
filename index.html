@@ -7,7 +7,7 @@
     <style>
       * { box-sizing: border-box; }
       body { margin: 0; font-family: Arial, sans-serif; background: var(--background); color: var(--text); }
-      #viewport { position: absolute; inset: 130px 0 64px; overflow: hidden; }
+      #viewport { position: absolute; inset: 130px 0 64px; overflow: hidden; isolation: isolate; }
       canvas { display: block; touch-action: none; }
       canvas:focus-visible { outline: 2px solid var(--text); outline-offset: -3px; }
       header, footer { position: absolute; left: 28px; right: 28px; pointer-events: none; }
@@ -21,6 +21,37 @@
       .membrane-label { max-width: 320px; font-weight: 600; }
       #status { position: absolute; left: 28px; top: 45%; max-width: 520px; }
       #status[hidden] { display: none; }
+      .scene-panel { position: fixed; z-index: 2; background: var(--label-background); color: var(--text); border-radius: 6px; font-size: 14px; line-height: 1.4; }
+      .scene-panel button, .scene-panel summary { cursor: pointer; color: inherit; font: inherit; }
+      .scene-panel button { border: 0; border-radius: 4px; background: var(--grid); min-height: 44px; padding: 8px 12px; }
+      .scene-panel button:hover, .scene-panel summary:hover, .layer-option:hover { background: var(--floor); }
+      .scene-panel :is(button, input, summary):focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+      .scene-panel [hidden] { display: none; }
+      #layer-panel { top: 24px; right: 28px; width: 244px; z-index: 3; max-height: calc(100dvh - 48px); overflow-y: auto; }
+      #layer-panel.is-collapsed { width: 44px; }
+      #layer-panel .layer-toggle { display: flex; align-items: center; gap: 10px; width: 100%; background: transparent; text-align: left; font-weight: 600; }
+      .layer-toggle svg { flex-shrink: 0; }
+      .is-collapsed .layer-toggle span { display: none; }
+      #layer-panel-body { padding: 0 12px 12px; }
+      .layer-option { display: flex; align-items: center; gap: 10px; min-height: 32px; cursor: pointer; border-radius: 4px; }
+      .layer-option input { width: 18px; height: 18px; margin: 0 0 0 4px; accent-color: var(--text); color-scheme: dark; flex-shrink: 0; }
+      .layer-presets { display: flex; gap: 8px; margin-top: 10px; }
+      .layer-presets button:first-child { flex: 1; }
+      #scene-legend { left: 28px; bottom: 82px; max-width: calc(100vw - 56px); max-height: 40dvh; overflow-y: auto; }
+      #scene-legend summary { min-height: 44px; padding: 12px 16px; font-weight: 600; }
+      .legend-groups { display: grid; grid-template-columns: auto auto; gap: 14px 24px; padding: 0 16px 16px; }
+      .legend-groups section:first-child { grid-row: span 2; }
+      .legend-groups h2 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+      .legend-groups ul { list-style: none; margin: 0; padding: 0; }
+      .legend-groups li { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+      .legend-swatch { display: inline-block; width: 22px; flex-shrink: 0; }
+      .legend-swatch.cable { height: 4px; background: var(--swatch-color); }
+      .legend-swatch.ground { outline: 1px solid var(--muted); }
+      .legend-swatch.hose { height: 3px; background: var(--swatch-color); }
+      .legend-swatch.gas { height: 8px; background: var(--swatch-color); }
+      @media (min-width: 601px) {
+        header { right: 296px; }
+      }
       @media (max-width: 600px) {
         header, footer { left: 16px; right: 16px; }
         header { top: 16px; }
@@ -30,6 +61,15 @@
         .zone-label { font-size: 12px; }
         .flow-label { max-width: 100px; }
         .membrane-label { max-width: 160px; }
+        header h1 { max-width: calc(100% - 56px); }
+        #layer-panel { top: 16px; right: 16px; width: 44px; max-height: none; overflow: visible; }
+        #layer-panel .layer-toggle span { display: none; }
+        #layer-panel-body { position: fixed; top: 112px; right: 16px; width: 244px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 128px); overflow-y: auto; background: var(--label-background); border-radius: 6px; padding: 12px; }
+        .layer-option { min-height: 44px; }
+        #scene-legend { left: 16px; bottom: 108px; max-width: calc(100vw - 32px); font-size: 12px; }
+        .legend-groups { gap: 12px; padding: 0 12px 12px; }
+        .legend-groups li { gap: 6px; }
+        .legend-swatch { width: 16px; }
       }
     </style>
     <script type="importmap">
