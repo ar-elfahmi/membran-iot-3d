@@ -6,7 +6,8 @@ export function createLegend() {
   panel.className = 'scene-panel';
   panel.setAttribute('aria-label', legend.title);
   const details = document.createElement('details');
-  details.open = !legend.collapsed;
+  // Setiap pemuatan halaman mulai tertutup; toggle native berlaku hanya di sesi ini.
+  details.open = false;
   const summary = document.createElement('summary');
   summary.textContent = legend.title;
   const content = document.createElement('div');

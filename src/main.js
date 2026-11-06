@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { components, membrane, palette, sceneConfig as config, ui, zones, sensing, controller, communication, actuation, layout, powerSupply, cables, labelConfig } from './config.js';
+import { components, membrane, palette, sceneConfig as config, ui, zones, sensing, controller, communication, actuation, layout, powerSupply, cables, labelConfig, info, interaction } from './config.js';
 import { createMembraneModule } from './components/membrane.js';
 import { createPipe } from './components/pipes.js';
 import { createFlowMeter } from './components/flowMeter.js';
@@ -20,12 +20,17 @@ import { createLabel, createLabelUpdater } from './ui/labels.js';
 import { checkLayoutOverlap, getComponentBox } from './ui/layout.js';
 import { createLayerPanel } from './ui/layerPanel.js';
 import { createLegend } from './ui/legend.js';
+import { createInteraction } from './ui/interaction.js';
+import { createInfoPanel } from './ui/infoPanel.js';
+import { createCameraMotion, createCameraPresets } from './ui/cameraPresets.js';
+import { createExplode } from './ui/explode.js';
 
 for (const key of ['background', 'text', 'muted', 'labelBackground', 'floor', 'grid']) {
   document.documentElement.style.setProperty(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`, palette[key]);
 }
 for (const id of ['title', 'subtitle', 'instructions', 'scope']) document.getElementById(id).textContent = ui[id];
 document.documentElement.style.setProperty('--zone-label-color', labelConfig.zoneColor);
+document.documentElement.style.setProperty('--highlight', interaction.highlight);
 document.documentElement.style.setProperty('--zone-label-size', `${labelConfig.zoneFontSize}px`);
 document.documentElement.style.setProperty('--hose-stripe-color', sensing.sdp31.tube.stripeColor);
 
@@ -160,7 +165,9 @@ const devices = [];
 scene.traverse((object) => {
   if (object.isGroup && object.userData.id && !object.userData.layoutAttachment) devices.push(object);
 });
-scene.add(createCables({ ...cables, pipeRadius: membrane.pipe.radius }, devices, pipes));
+for (const device of devices) device.userData.desc = info[device.userData.id]?.desc ?? device.userData.desc;
+const cableGroup = createCables({ ...cables, pipeRadius: membrane.pipe.radius }, devices, pipes);
+scene.add(cableGroup);
 const zoneObjects = [];
 zones.forEach((zone) => {
   zone.regions.forEach((ids, regionIndex) => {
@@ -186,6 +193,8 @@ zones.forEach((zone) => {
     if (regionIndex > 0) return;
     const label = createLabel(zone.name, 'zone-label');
     label.center.set(0, 1);
+    label.userData.border = border;
+    label.userData.regionIds = ids;
     label.position.set(box.min.x, y, box.min.z).add(new THREE.Vector3(...(zone.labelOffset ?? layout.zone.labelOffset)));
     scene.add(label);
     zoneObjects.push(label);
@@ -198,7 +207,7 @@ scene.traverse((object) => {
   if (object.isCSS2DObject && object.element.classList.contains('component-label')) componentLabels.push(object);
   if (object.userData.gasLayer) gasAttachments.push(object);
 });
-createLayerPanel({
+const layerPanel = createLayerPanel({
   ...Object.fromEntries(Object.entries(layers).map(([id, group]) => [id, [group]])),
   // Mesh pipa, flange dan panah saja; perangkat inline mempertahankan visibilitasnya.
   gas: [...gasAttachments, ...[...pipes.values()].flatMap((pipe) => pipe.children.filter((object) => object.isMesh))],
@@ -206,6 +215,12 @@ createLayerPanel({
   zones: zoneObjects,
 });
 createLegend();
+const motion = createCameraMotion(camera, controls);
+let interactions;
+const infoPanel = createInfoPanel(devices, (device) => interactions.select(device), () => interactions.select(null));
+const presetBar = createCameraPresets(motion, () => interactions.select(null));
+interactions = createInteraction({ camera, canvas: renderer.domElement, devices, motion, panel: infoPanel, onSelect: () => { presetBar.clear(); layerPanel.collapse(); } });
+const explodeView = createExplode({ devices, membrane: membraneUnit, cables: cableGroup, pipes, onChange: () => scene.updateMatrixWorld(true) });
 
 if (layout.devHosts.includes(window.location.hostname)) {
   window.checkLayoutOverlap = () => checkLayoutOverlap(devices);
@@ -231,11 +246,15 @@ function resize() {
   labels.setSize(width, height);
 }
 window.addEventListener('resize', resize);
+new ResizeObserver(resize).observe(viewport);
 resize();
 document.getElementById('status').hidden = true;
 const updateLabels = createLabelUpdater(scene, camera, devices);
-renderer.setAnimationLoop(() => {
+renderer.setAnimationLoop((now) => {
+  explodeView.update(now);
+  motion.update(now);
   controls.update();
+  interactions.update(now);
   renderer.render(scene, camera);
   labels.render(scene, camera);
   updateLabels();

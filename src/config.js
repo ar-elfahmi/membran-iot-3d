@@ -9,8 +9,8 @@ export const palette = {
 export const ui = {
   title: 'Smart Mixed-Matrix Membrane Gas Separation System',
   subtitle: 'Model 3D interaktif · Tata letak awal sistem IoT',
-  instructions: 'Seret: putar · Scroll / cubit: zoom · Klik kanan: geser',
-  scope: 'Slice 6C · Tata letak kabel, selang & label',
+  instructions: 'Klik / tap: detail · Seret: putar · Scroll / cubit: zoom · Esc: tutup',
+  scope: 'Slice 7 · Eksplorasi komponen',
   canvasLabel: 'Tata letak 3D sistem membran. Gunakan mouse atau sentuhan untuk memutar dan memperbesar.',
   layerPanel: {
     title: 'Layer tampilan', open: 'Buka panel layer', close: 'Ciutkan panel layer',
@@ -65,7 +65,7 @@ export const zones = [
 
 export const labelConfig = {
   throttleFrames: 8, gap: 5, farStart: 48, farEnd: 90, farOpacity: 0.35, occludedOpacity: 0.18,
-  zoneFontSize: 11, zoneColor: '#8d9aa3', zoneOpacity: 0.7,
+  zoneFontSize: 12, zoneColor: '#e0e7eb', zoneOpacity: 1, zoneScreenGap: 10,
   priority: { zone: 100, membrane: 90, esp32: 80, sdp31: 80, valve1: 80, valve2: 80, valve3: 80, pump: 80, default: 40 },
 };
 
@@ -73,7 +73,7 @@ export const layout = {
   devHosts: ['localhost', '127.0.0.1', '[::1]'],
   // Kontak mekanis yang disengaja; pipa/selang ditandai layoutAttachment.
   contacts: [['membrane', 'pressureSensor'], ['membrane', 'tempSensor']],
-  zone: { padding: [0.22, 0, 0.22], y: 0.04, color: '#80909a', opacity: 0.25, dashSize: 0.28, gapSize: 0.2, labelOffset: [0.08, 0.05, -0.08] },
+  zone: { padding: [0.22, 0, 0.22], y: 0.04, color: '#80909a', opacity: 0.25, dashSize: 0.28, gapSize: 0.2, labelOffset: [-0.25, 0.05, -0.45] },
 };
 
 export const powerSupply = {
@@ -328,4 +328,62 @@ export const legend = {
       { label: 'N2-rich retentate', color: membrane.colors.retentate, type: 'gas' },
     ] },
   ],
+};
+
+export const interaction = {
+  hoverInterval: 60, clickDistance: 5, duration: 600,
+  highlight: '#9bd8ed', hoverStrength: 0.16, selectedStrength: 0.38,
+  focus: { direction: [0.25, 1, 1], padding: 1.6, minSize: 3.5 },
+};
+
+export const cameraPresets = [
+  { id: 'overview', label: 'Ikhtisar', position: [...sceneConfig.camera.position], target: [...sceneConfig.camera.target] },
+  { id: 'gas', label: 'Jalur gas', position: [5, 17, 24], target: [4, 1.5, 8] },
+  { id: 'control', label: 'Klaster kontrol', position: [0, 14, 13], target: [0, 0.7, 0] },
+  { id: 'communication', label: 'Komunikasi', position: [6, 15, 5], target: [5, 1, -9] },
+];
+
+export const explode = {
+  speed: 9, epsilon: 0.0001,
+  offsets: {
+    communication: [0, 5, 0], controller: [-1.5, 3.5, -1], sensing: [0, 1.8, 0],
+    actuation: [0, 2, 0], housing: [0, 4, 0],
+  },
+};
+
+export const interactionUI = {
+  panel: 'Informasi komponen', close: 'Tutup', connections: 'Koneksi', pins: 'Tabel pin',
+  pin: 'Pin', endpoint: 'Terhubung ke', specs: 'Spesifikasi',
+  emptySpecs: 'Belum diisi.', emptyConnections: 'Tidak ada koneksi kabel pada konfigurasi.',
+  emptyPins: 'Port listrik belum didefinisikan.', unconnected: '—',
+  previous: 'Komponen terhubung sebelumnya', next: 'Komponen terhubung berikutnya',
+  choose: 'Pilih komponen', reset: 'Reset', camera: 'Preset kamera',
+  explode: 'Explode', reassemble: 'Rakit kembali',
+  explodeHint: 'Kabel disembunyikan selama explode; pipa dan selang mengikuti sambungan.',
+  demo: 'Kontrol visual lokal · LED dan status saja',
+  states: { open: 'Terbuka', closed: 'Tertutup', running: 'Berjalan', stopped: 'Berhenti' },
+  actions: { open: 'Tutup', closed: 'Buka', running: 'Berhenti', stopped: 'Jalan' },
+};
+
+// Isi specs dengan data yang sudah diverifikasi; jangan ambil angka dari geometri model.
+export const info = {
+  sdp31: { desc: 'Sensor tekanan diferensial; P1 membaca inlet dan P2 membaca retentate.', specs: [] },
+  powerSupply: { desc: 'Adaptor dan regulator menyediakan daya untuk klaster kontrol dan sensor.', specs: [] },
+  flowSensor: { desc: 'Sensor I2C mengukur aliran pada jalur permeate.', specs: [] },
+  esp32: { desc: 'Pengendali pembacaan sensor dan antarmuka aktuator.', specs: [] },
+  hbridge: { desc: 'Driver untuk tiga solenoid valve dan pompa vakum.', specs: [] },
+  valve1: { desc: 'Katup inlet setelah Flow Meter In.', specs: [] },
+  valve2: { desc: 'Katup permeate setelah Flow Sensor dan sebelum pompa.', specs: [] },
+  valve3: { desc: 'Katup retentate sebelum Flow Meter Out.', specs: [] },
+  pump: { desc: 'Pompa vakum pada jalur permeate setelah Solenoid Valve 2.', specs: [] },
+  wifiModule: { desc: 'Antarmuka komunikasi nirkabel klaster kontrol.', specs: [] },
+  mqttBroker: { desc: 'Perantara pesan MQTT antara perangkat dan Cloud Platform.', specs: [] },
+  cloud: { desc: 'Platform penyimpanan dan pengolahan data sistem.', specs: [] },
+  phone: { desc: 'Antarmuka pemantauan sistem melalui ponsel.', specs: [] },
+  laptop: { desc: 'Antarmuka visualisasi sistem melalui laptop.', specs: [] },
+  membrane: { desc: 'Bundel hollow fiber memisahkan campuran gas menjadi permeate kaya CO2 dan retentate kaya N2.', specs: [] },
+  flowMeterIn: { desc: 'Pengukur laju aliran campuran gas sebelum masuk membran.', specs: [] },
+  flowMeterOut: { desc: 'Pengukur laju aliran retentate setelah pemisahan.', specs: [] },
+  pressureSensor: { desc: 'Pengukur tekanan gas di dalam housing membran.', specs: [] },
+  tempSensor: { desc: 'Probe pengukur suhu gas di dalam modul membran.', specs: [] },
 };

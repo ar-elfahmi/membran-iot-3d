@@ -39,6 +39,7 @@ export function createMembraneModule(config) {
   );
   housing.rotation.z = Math.PI / 2;
   group.add(housing);
+  group.userData.housing = housing;
 
   for (const position of config.endCaps.positions) {
     const cap = new THREE.Mesh(new THREE.CylinderGeometry(config.endCaps.radius, config.endCaps.radius, config.endCaps.length, segments), metal);

@@ -21,7 +21,10 @@ export function createLayerPanel(targets) {
   body.id = 'layer-panel-body';
   const inputs = new Map();
   const setVisible = (id, visible) => {
-    for (const object of targets[id]) object.visible = visible;
+    for (const object of targets[id]) {
+      if (id === 'labels' && object.userData.forceVisible) object.userData.beforeHighlightVisible = visible;
+      object.visible = visible || (id === 'labels' && !!object.userData.forceVisible);
+    }
   };
   for (const { id, label, active } of config.options) {
     const row = document.createElement('label');
@@ -70,5 +73,7 @@ export function createLayerPanel(targets) {
   mobile.addEventListener('change', (event) => setExpanded(!event.matches));
   panel.append(toggle, body);
   document.body.appendChild(panel);
-  return panel;
+  return {
+    collapse: () => setExpanded(false),
+  };
 }
