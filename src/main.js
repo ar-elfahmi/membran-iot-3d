@@ -1,14 +1,19 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import { components, membrane, palette, sceneConfig as config, ui, zones } from './config.js';
+import { components, membrane, palette, sceneConfig as config, ui, zones, sensing, controller, communication, layout } from './config.js';
 import { createPlaceholder } from './components/placeholder.js';
 import { createMembraneModule } from './components/membrane.js';
 import { createPipe } from './components/pipes.js';
 import { createFlowMeter } from './components/flowMeter.js';
 import { createPressureSensor } from './components/pressureSensor.js';
 import { createTemperatureSensor } from './components/temperatureSensor.js';
+import { createSdp31 } from './components/sdp31.js';
+import { createFlowSensor } from './components/flowSensor.js';
+import { createEsp32 } from './components/esp32.js';
+import { createWifiModule, createMqttBroker, createCloud, createPhone, createLaptop } from './components/comms.js';
 import { createLabel } from './ui/labels.js';
+import { checkLayoutOverlap } from './ui/layout.js';
 
 for (const key of ['background', 'text', 'muted', 'labelBackground']) {
   document.documentElement.style.setProperty(`--${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`, palette[key]);
@@ -62,13 +67,21 @@ scene.add(floor);
 const grid = new THREE.GridHelper(config.grid.size, config.grid.divisions, palette.gridCenter, palette.grid);
 grid.position.y = config.grid.y;
 scene.add(grid);
-components.forEach((component) => scene.add(createPlaceholder(component)));
+const commFactories = { wifiModule: createWifiModule, mqttBroker: createMqttBroker, cloud: createCloud, phone: createPhone, laptop: createLaptop };
+for (const component of components) {
+  if (component.category === 'actuation') scene.add(createPlaceholder(component));
+  else if (component.id === 'esp32') scene.add(createEsp32({ ...controller, ...component }));
+  else if (commFactories[component.id]) scene.add(commFactories[component.id]({ ...communication, ...component }));
+}
 const membraneUnit = createMembraneModule(membrane);
+const pipes = new Map();
 for (const route of membrane.routes) {
   const color = membrane.colors[route.color];
   const pipe = createPipe(route.points, color, membrane.pipe.radius);
   pipe.name = route.id;
   Object.assign(pipe.userData, { id: route.id, name: route.name, desc: route.desc, pins: [] });
+  pipe.userData.layoutAttachment = true;
+  pipes.set(route.id, pipe);
   const { curve } = pipe.userData;
   const arrow = new THREE.Mesh(
     new THREE.ConeGeometry(membrane.arrow.radius, membrane.arrow.length, membrane.arrow.segments),
@@ -94,11 +107,43 @@ membraneUnit.add(
   createTemperatureSensor(membrane.temperatureSensor, membrane.colors, membrane.material, membrane.segments),
 );
 scene.add(membraneUnit);
+
+const flowConfig = { ...sensing, ...sensing.flowSensor, ...components.find((component) => component.id === 'flowSensor') };
+const flowSensor = createFlowSensor(flowConfig);
+const permeate = pipes.get(flowConfig.route);
+flowSensor.position.copy(permeate.userData.curve.getPointAt(flowConfig.at));
+flowSensor.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), permeate.userData.curve.getTangentAt(flowConfig.at));
+permeate.add(flowSensor);
+
+const sdpConfig = { ...sensing, ...sensing.sdp31, ...components.find((component) => component.id === 'sdp31') };
+scene.updateMatrixWorld(true);
+sdpConfig.ports = sdpConfig.ports.map((port) => {
+  const pipe = pipes.get(port.route);
+  const origin = new THREE.Vector3(...sdpConfig.position);
+  return {
+    ...port,
+    via: port.via.map((point) => new THREE.Vector3(...point).sub(origin).toArray()),
+    connection: {
+      position: pipe.localToWorld(pipe.userData.curve.getPointAt(port.at)).sub(origin).toArray(),
+      tangent: pipe.userData.curve.getTangentAt(port.at).transformDirection(pipe.matrixWorld).toArray(),
+    },
+  };
+});
+scene.add(createSdp31(sdpConfig));
 zones.forEach((zone) => {
   const label = createLabel(zone.name, 'zone-label');
   label.position.set(...zone.position);
   scene.add(label);
 });
+
+if (layout.devHosts.includes(window.location.hostname)) {
+  const devices = [];
+  scene.traverse((object) => {
+    if (object.isGroup && object.userData.id && !object.userData.layoutAttachment) devices.push(object);
+  });
+  window.checkLayoutOverlap = () => checkLayoutOverlap(devices);
+  console.info('[layout]', JSON.stringify(window.checkLayoutOverlap()));
+}
 
 function resize() {
   const { width, height } = viewport.getBoundingClientRect();
@@ -107,7 +152,8 @@ function resize() {
   // Zoom adaptif mempertahankan orientasi dan posisi OrbitControls saat resize.
   const distance = new THREE.Vector3(...config.camera.position).distanceTo(new THREE.Vector3(...config.camera.target));
   const viewHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-  camera.zoom = Math.min(1, viewHeight * camera.aspect / config.camera.fitWidth, viewHeight / config.camera.fitDepth);
+  const fitWidth = camera.aspect < config.camera.narrowAspect ? config.camera.narrowFitWidth : config.camera.fitWidth;
+  camera.zoom = Math.min(1, viewHeight * camera.aspect / fitWidth, viewHeight / config.camera.fitDepth);
   camera.updateProjectionMatrix();
   renderer.setSize(width, height);
   labels.setSize(width, height);

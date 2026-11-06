@@ -10,12 +10,12 @@ export const ui = {
   title: 'Smart Mixed-Matrix Membrane Gas Separation System',
   subtitle: 'Model 3D interaktif · Tata letak awal sistem IoT',
   instructions: 'Seret: putar · Scroll / cubit: zoom · Klik kanan: geser',
-  scope: 'Slice 2 · Modul membran dan aliran gas',
+  scope: 'Slice 3–4 · Sensing, ESP32 dan Communication',
   canvasLabel: 'Tata letak 3D sistem membran. Gunakan mouse atau sentuhan untuk memutar dan memperbesar.',
 };
 
 export const sceneConfig = {
-  camera: { fov: 43, near: 0.1, far: 180, position: [0, 25, 23], target: [0, 0, 0], fitWidth: 32, fitDepth: 27 },
+  camera: { fov: 43, near: 0.1, far: 180, position: [3, 24, 22], target: [3, 0, 0], fitWidth: 43, narrowFitWidth: 54, narrowAspect: 1, fitDepth: 25.5 },
   controls: { dampingFactor: 0.07, minDistance: 10, maxDistance: 90, maxPolarAngle: Math.PI / 2.15 },
   renderer: { maxPixelRatio: 2, exposure: 1.15 },
   floor: { size: 56, y: -0.02, roughness: 0.95 },
@@ -24,29 +24,111 @@ export const sceneConfig = {
   placeholder: { size: [2.7, 0.8, 1.55], labelOffset: [0, 1.1, 0], roughness: 0.65, metalness: 0.08 },
 };
 
-// Posisi sementara [x, y, z]; z negatif = atas diagram. Pin belum ditentukan.
+// Posisi dunia [x, y, z]; z negatif = atas diagram. Sensor inline mengikuti kurva.
 export const components = [
-  { id: 'sdp31', name: 'SDP31', desc: 'Sensor tekanan diferensial.', position: [-10, 0.4, -1], category: 'sensing', pins: [] },
-  { id: 'flowSensor', name: 'Flow Sensor', desc: 'Sensor aliran gas.', position: [-6, 0.4, -1], category: 'sensing', pins: [] },
-  { id: 'esp32', name: 'ESP32', desc: 'Pengendali pembacaan sensor dan aktuator.', position: [0, 0.4, 0], category: 'controller', pins: [] },
-  { id: 'hbridge', name: 'H-Bridge', desc: 'Driver kendali aktuator.', position: [5, 0.4, -1], category: 'actuation', pins: [] },
-  { id: 'valve1', name: 'Solenoid Valve 1', desc: 'Katup solenoid pertama.', position: [9, 0.4, -2], category: 'actuation', pins: [] },
-  { id: 'valve2', name: 'Solenoid Valve 2', desc: 'Katup solenoid kedua.', position: [9, 0.4, 1], category: 'actuation', pins: [] },
-  { id: 'valve3', name: 'Solenoid Valve 3', desc: 'Katup solenoid ketiga.', position: [9, 0.4, 4], category: 'actuation', pins: [] },
-  { id: 'pump', name: 'Pump / Blower', desc: 'Pompa penggerak aliran gas.', position: [5, 0.4, 3], category: 'actuation', pins: [] },
-  { id: 'wifiModule', name: 'Wi-Fi / Bluetooth', desc: 'Antarmuka komunikasi nirkabel.', position: [-8, 0.4, -7], category: 'communication', pins: [] },
-  { id: 'mqttBroker', name: 'MQTT Broker', desc: 'Perantara pesan MQTT.', position: [-4, 0.4, -7], category: 'communication', pins: [] },
-  { id: 'cloud', name: 'Cloud Platform', desc: 'Platform penyimpanan dan pengolahan data.', position: [0, 0.4, -7], category: 'communication', pins: [] },
-  { id: 'phone', name: 'Ponsel', desc: 'Antarmuka pemantauan melalui ponsel.', position: [4, 0.4, -7], category: 'communication', pins: [] },
-  { id: 'laptop', name: 'Laptop', desc: 'Antarmuka visualisasi melalui laptop.', position: [8, 0.4, -7], category: 'communication', pins: [] },
+  { id: 'sdp31', name: 'SDP31', desc: 'Sensor tekanan diferensial: P1 ke inlet (High Pressure), P2 ke retentate (Low Pressure).', position: [-9, 0.4, 0], category: 'sensing', pins: ['VIN', 'GND', 'SDA', 'SCL'] },
+  { id: 'flowSensor', name: 'Flow Sensor', desc: 'Sensor I2C pada permeate CO2 untuk mengukur aliran sebagai dasar perhitungan fluks.', category: 'sensing', pins: ['VIN', 'GND', 'SDA', 'SCL'] },
+  { id: 'esp32', name: 'ESP32', desc: 'Pengendali pembacaan sensor I2C dan aktuator.', position: [0, 0.4, -0.5], category: 'controller', pins: ['VIN', '3V3', 'GND', 'GPIO21 / SDA', 'GPIO22 / SCL', 'EN', 'BOOT'] },
+  { id: 'hbridge', name: 'H-Bridge', desc: 'Driver kendali aktuator.', position: [15, 0.4, -1], category: 'actuation', pins: [] },
+  { id: 'valve1', name: 'Solenoid Valve 1', desc: 'Katup solenoid pertama.', position: [20, 0.4, -3], category: 'actuation', pins: [] },
+  { id: 'valve2', name: 'Solenoid Valve 2', desc: 'Katup solenoid kedua.', position: [20, 0.4, 2], category: 'actuation', pins: [] },
+  { id: 'valve3', name: 'Solenoid Valve 3', desc: 'Katup solenoid ketiga.', position: [20, 0.4, 7], category: 'actuation', pins: [] },
+  { id: 'pump', name: 'Pump / Blower', desc: 'Pompa penggerak aliran gas.', position: [15, 0.4, 4], category: 'actuation', pins: [] },
+  { id: 'wifiModule', name: 'Wi-Fi / Bluetooth', label: 'Wi-Fi /\nBluetooth', desc: 'Antarmuka komunikasi nirkabel.', position: [-15, 0.4, -10], category: 'communication', pins: [] },
+  { id: 'mqttBroker', name: 'MQTT Broker', label: 'MQTT\nBroker', desc: 'Perantara pesan MQTT.', position: [-7, 0.4, -10], category: 'communication', pins: [] },
+  { id: 'cloud', name: 'Cloud Platform', label: 'Cloud\nPlatform', desc: 'Platform penyimpanan dan pengolahan data.', position: [1, 0.4, -10], category: 'communication', pins: [] },
+  { id: 'phone', name: 'Ponsel', desc: 'Antarmuka pemantauan melalui ponsel.', position: [9, 0.4, -10], category: 'communication', pins: [] },
+  { id: 'laptop', name: 'Laptop', desc: 'Antarmuka visualisasi melalui laptop.', position: [17, 0.4, -10], category: 'communication', pins: [] },
 ];
 
 export const zones = [
-  { name: 'Communication', position: [0, 0, -12] },
-  { name: 'Sensing', position: [-8, 0, -4] },
-  { name: 'Controller', position: [0, 0, -3] },
-  { name: 'Actuation', position: [7, 0, -5] },
+  { name: 'Communication', position: [1, 0, -26] },
+  { name: 'Sensing', position: [-9, 0, -3.5] },
+  { name: 'Controller', position: [0, 0, -4.5] },
+  { name: 'Actuation', position: [25, 0, -12] },
 ];
+
+export const layout = {
+  devHosts: ['localhost', '127.0.0.1', '[::1]'],
+  // Kontak mekanis yang disengaja; pipa/selang ditandai layoutAttachment.
+  contacts: [['membrane', 'pressureSensor'], ['membrane', 'tempSensor']],
+};
+
+export const sensing = {
+  segments: 24,
+  material: { roughness: 0.5, metalness: 0.15 },
+  colors: { pcb: '#163f30', chip: '#171c20', metal: '#b9c5cc', pin: '#d8bb6c', clear: '#c8e7ef', connector: '#e1dfd5', ink: '#edf6f2' },
+  sdp31: {
+    board: { size: [2.8, 0.14, 2], position: [0, 0, 0] },
+    chip: { size: [0.75, 0.25, 0.7], position: [0, 0.19, 0.15] },
+    ports: [
+      { name: 'P1', position: [-0.65, 0.37, -0.45], route: 'inletPipe', at: 0.13, color: palette.cables.control,
+        via: [[-10, 2.4, 2], [-10.4, 2.4, 5.5]] },
+      { name: 'P2', position: [0.65, 0.37, -0.45], route: 'retentatePipe', at: 0.96, color: palette.cables.data,
+        via: [[-8, 1.8, 3.2], [-3, 1.8, 4], [5, 1.8, 4], [10, 2.2, 6]] },
+    ],
+    nozzle: { radius: 0.15, boreRadius: 0.075, height: 0.6, boreHeight: 0.015, boreOffset: 0.305 },
+    header: { size: [0.14, 0.55, 0.14], start: [-0.75, 0.24, 0.83], pitch: 0.5 },
+    legend: { canvas: [512, 384], font: 'bold 28px Arial', size: [2.8, 2], position: [0, 0.075, 0], portTextAt: [[137, 60], [375, 60]], pinTextAt: [[119, 320], [210, 320], [302, 320], [393, 320]] },
+    labelOffset: [0, 0.9, 1.8],
+    tube: { radius: 0.055, segments: 80, radialSegments: 8, teeRadius: 0.21, teeLength: 0.4, branchRadius: 0.1, branchLength: 0.4, branchOffset: [0, 0.2, 0], endOffset: [0, 0.4, 0] },
+  },
+  flowSensor: {
+    route: 'permeatePipe', at: 0.5,
+    radius: 0.34, length: 1.15, opacity: 0.4,
+    collarRadius: 0.25, collarLength: 0.18, collarPositions: [[-0.58, 0, 0], [0.58, 0, 0]],
+    board: { size: [0.8, 0.12, 0.56], position: [0, 0.42, 0] },
+    chip: { size: [0.27, 0.12, 0.27], position: [0, 0.54, 0] },
+    connector: { size: [0.42, 0.25, 0.22], position: [0, 0.6, 0.34] },
+    pin: { size: [0.045, 0.12, 0.1], start: [-0.135, 0.6, 0.49], pitch: 0.09 },
+    labelOffset: [0, 1.45, -0.5],
+  },
+};
+
+export const controller = {
+  segments: 24,
+  colors: { pcb: '#181d22', silver: '#aab8c3', black: '#0d1114', gold: '#d6ba71', button: '#7e8b94', led: '#35db83', logo: '#243039' },
+  material: { roughness: 0.45, metalness: 0.4 },
+  board: { size: [2.65, 0.14, 4.6], position: [0, 0, 0] },
+  shield: { size: [1.72, 0.28, 1.65], position: [0, 0.23, -0.45] },
+  logo: { text: 'ESP32', canvas: [256, 256], font: 'bold 48px Arial', position: [0, 0.378, -0.45], size: [1.5, 1.45], textAt: [128, 135] },
+  antenna: { size: [1.7, 0.04, 0.78], position: [0, 0.1, -1.75], radius: 0.025, tubularSegments: 1, radialSegments: 6,
+    points: [[-0.7, 0.14, -1.5], [-0.7, 0.14, -2.02], [-0.35, 0.14, -2.02], [-0.35, 0.14, -1.57], [0, 0.14, -1.57], [0, 0.14, -2.02], [0.35, 0.14, -2.02], [0.35, 0.14, -1.57], [0.7, 0.14, -1.57]] },
+  header: { count: 15, sides: [-1.13, 1.13], startZ: -1.88, pitch: 0.27, y: 0.22, socketSize: [0.26, 0.25, 0.22], pinSize: [0.075, 0.65, 0.075] },
+  usb: { size: [0.65, 0.3, 0.5], position: [0, 0.22, 2.2], openingSize: [0.48, 0.14, 0.015], openingPosition: [0, 0.22, 2.46] },
+  buttons: { size: [0.36, 0.18, 0.38], positions: [[-0.7, 0.2, 1.65], [0.7, 0.2, 1.65]], labels: ['EN', 'BOOT'],
+    legend: { canvas: [256, 64], font: 'bold 28px Arial', size: [1.9, 0.45], position: [0, 0.075, 1.2], textAt: [[36, 43], [220, 43]] } },
+  statusLed: { radius: 0.09, position: [-0.7, 0.19, 0.8], intensity: 1.6 },
+  labelOffset: [0, 1.35, 3],
+};
+
+export const communication = {
+  segments: 24,
+  colors: { case: '#698ca4', rack: '#334652', silver: '#a3b4c0', dark: '#101d28', screen: '#eaf2f6', ink: '#173342', muted: '#506b7a', accent: '#207b99', green: '#57d699', cloud: '#dcecf4' },
+  material: { roughness: 0.55, metalness: 0.18 },
+  labelOffset: [0, 3.3, 0],
+  wifi: { size: [2.25, 0.7, 1.5], position: [0, 0.35, 0], mastRadius: 0.06, mastLength: 0.7, mastPosition: [0, 1.05, 0],
+    tipRadius: 0.13, tipPosition: [0, 1.45, 0], arcs: [0.45, 0.75, 1.05], arcTube: 0.035, arcRadialSegments: 8, arcAngle: Math.PI / 1.5, arcRotation: Math.PI / 6, arcPosition: [0, 1.45, 0] },
+  mqtt: { size: [2, 2.4, 1.45], position: [0, 1.2, 0], bays: [0.5, 1.2, 1.9], baySize: [1.65, 0.43, 0.08], bayZ: 0.76,
+    ledRadius: 0.075, ledX: 0.57, ledZ: 0.83, ledColors: ['#57d699', '#70bfee', '#dfbd6c'], ledIntensity: 1.1 },
+  cloud: { spheres: [
+    { radius: 0.85, position: [-1, 1.2, 0] }, { radius: 1.05, position: [-0.25, 1.6, 0] },
+    { radius: 0.8, position: [0.85, 1.35, 0] }, { radius: 0.7, position: [-0.4, 0.95, 0.35] },
+    { radius: 0.7, position: [0.55, 1, 0.35] }, { radius: 0.65, position: [1.25, 1.1, 0] },
+  ] },
+  phone: { size: [1.5, 2.9, 0.22], radius: 0.16, curveSegments: 4, position: [0, 1.45, 0],
+    screenSize: [1.26, 2.48], screenPosition: [0, 1.5, 0.122], speakerSize: [0.36, 0.035, 0.025], speakerPosition: [0, 2.76, 0.125] },
+  laptop: { baseSize: [3.5, 0.16, 2.1], basePosition: [0, 0.12, 0.35], screenSize: [3.5, 2.1, 0.16], screenPosition: [0, 0.2, -0.7], screenAngle: -Math.PI / 10,
+    panelPosition: [0, 1.05, 0], displaySize: [3.13, 1.76], displayPosition: [0, 1.05, 0.09],
+    keyboardSize: [2.85, 0.025, 0.7], keyboardPosition: [0, 0.215, 0.16], touchpadSize: [0.75, 0.025, 0.43], touchpadPosition: [0, 0.215, 0.9] },
+  dashboard: {
+    canvasSize: [512, 640], font: 'Arial', title: 'Membran IoT', demo: 'DEMO · Data simulasi', status: 'Sistem normal',
+    metrics: [{ label: 'Delta P', value: '12.4 Pa' }, { label: 'Aliran CO2', value: '2.8 L/min' }, { label: 'Suhu gas', value: '25.0 °C' }],
+    chartTitle: 'Tren aliran CO2', chartValues: [0.55, 0.49, 0.59, 0.53, 0.68, 0.62, 0.7, 0.66, 0.78],
+    padding: 30, titleY: 52, demoY: 84, statusY: 125, rowY: 187, rowHeight: 76, valueX: 280,
+    chartTitleY: 444, chart: [30, 476, 452, 112], titleFont: 34, bodyFont: 23, valueFont: 28, smallFont: 20, chartLineWidth: 5,
+  },
+};
 
 // Koordinat lokal seluruh unit terhadap position; jalur pipa berurutan searah aliran.
 export const membrane = {
