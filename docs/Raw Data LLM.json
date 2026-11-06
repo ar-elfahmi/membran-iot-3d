@@ -1,0 +1,19 @@
+{
+  "device_id": "ESP32_MEMBRANE_MODULE_01",
+  "timestamp": "2026-11-05T08:00:00Z",
+  "sensors": {
+    "differential_pressure_kpa": 124.50,
+    "upstream_pressure_bar": 3.02,
+    "downstream_pressure_bar": 1.01,
+    "humidity_rh_percent": 89.8,
+    "temperature_c": 28.5,
+    "gas_impurity": {
+      "so2_ppm": 49.8,
+      "no_ppm": 50.2
+    },
+    "performance": {
+      "co2_flux_mol_m2_s": 4.12e-3,
+      "flux_retention_percent": 98.5
+    }
+  }
+}
